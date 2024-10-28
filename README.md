@@ -30,3 +30,29 @@ This project implements a parser for a set of production rules using the LR(1) p
 ## Example
 
 ### Input Rules:
+S->AA 
+A->aA 
+A->b
+### User Input String:
+baab
+### Output:
+r0: S'->S r1: S->AA r2: A->aA r3: A->b NonTerminals: S,A Terminals: a,b ... Input string 'baab' accepted
+
+## Requirements
+
+- **Java 8 or higher**
+- **File `rules` in project root** with grammar rules
+
+## Project Structure
+
+- **Main.java**: The main entry point for the program, which handles reading the grammar rules, constructing the states, generating the parsing table, and parsing the input string.
+- **Auxiliary Methods**: Various helper methods for:
+  - Finding non-terminals and terminals.
+  - Constructing closures and GOTO transitions.
+  - Displaying the state diagram and parsing table.
+  - Parsing the input string using the stack-based parsing algorithm.
+
+## License
+
+This project is licensed under the MIT License.
+
