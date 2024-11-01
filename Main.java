@@ -103,33 +103,38 @@ public class Main {
     // DESC: this uses BFP to process the items in a recursive manner.
 
     public static String Closure(String state, String nonTerminals, String[] rulesCollections) {
-        Set<String> closureItems = new HashSet<>();// ensures each item is only used once and prevents infanite Loop
+        List<String> closureItems = new ArrayList<>(); // Use List to maintain order of addition
         Queue<String> itemsToProcess = new LinkedList<>();
-        String[] initialItem = state.split(",");
+        String[] initialItems = state.split(",");
 
-        // add initial state to itp and ci
-        for (String item : initialItem) {
-            itemsToProcess.add(item);
-            closureItems.add(item);
+        // Add initial state to itemsToProcess and closureItems
+        for (String item : initialItems) {
+            if (!closureItems.contains(item)) {
+                itemsToProcess.add(item);
+                closureItems.add(item);
+            }
         }
 
+        // Process each item in the queue
         while (!itemsToProcess.isEmpty()) {
             String currentItem = itemsToProcess.poll();
-
             int dotIndex = currentItem.indexOf(".");
 
+            // If the dot is at the end, skip this item
             if (dotIndex == -1 || dotIndex + 1 >= currentItem.length()) {
-                continue;// skip complete items
+                continue;
             }
 
             char symbolAfterDot = currentItem.charAt(dotIndex + 1);
-            // check if next item is non-terminal
+
+            // If the symbol after the dot is a non-terminal, add its productions
             if (nonTerminals.indexOf(symbolAfterDot) != -1) {
                 for (String rule : rulesCollections) {
                     if (rule.charAt(0) == symbolAfterDot) {
                         String newItem = rule.substring(0, rule.indexOf("->") + 2) + "."
                                 + rule.substring(rule.indexOf("->") + 2);
 
+                        // Add the new item if it's not already in the closure
                         if (!closureItems.contains(newItem)) {
                             closureItems.add(newItem);
                             itemsToProcess.add(newItem);
@@ -138,7 +143,8 @@ public class Main {
                 }
             }
         }
-        System.out.println("This is what we got Here: " + String.join(",", closureItems));
+
+        // Return the closure items as a comma-separated string
         return String.join(",", closureItems);
     }
 
