@@ -1,6 +1,13 @@
 import java.util.Hashtable;
-import java.util.Enumeration;
+import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.Set;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Stack;
@@ -69,104 +76,113 @@ public class Main {
     }
 
     public static String Goto(String state, char symbol, String nonTerminals, String[] rulesCollections) {
-        String[] items = state.split(",");
-        String newState = "", toUpdate = "";
-        for (int i = 0; i < items.length; i++) {
-            String rhs = items[i].substring(items[i].indexOf("->") + 2);
-            if (rhs.indexOf("." + symbol) != -1) {
-                toUpdate += items[i] + ",";
+        StringBuilder newState = new StringBuilder();// removed String to lessen space complexity.
+        List<String> itemsToUpdate = new ArrayList<>();
+
+        String[] items = state.split(",");// moved this out to avoid calling it repeatedly
+        for (String currentItem : items) {
+            int dotIndex = currentItem.indexOf(".");
+            if (dotIndex != -1 && dotIndex + 1 < currentItem.length() && currentItem.charAt(dotIndex + 1) == symbol) {
+                String updatedItem = currentItem.substring(0, dotIndex) + symbol + "."
+                        + currentItem.substring(dotIndex + 2);
+                itemsToUpdate.add(updatedItem);
             }
         }
-        if (toUpdate.equals("")) {
+
+        if (itemsToUpdate.isEmpty()) {
             return "";
-        } else {
-            toUpdate = toUpdate.substring(0, toUpdate.length() - 1);
-            String[] s = toUpdate.split(",");
-            for (int i = 0; i < s.length; i++) {
-                if (s[i].indexOf(".") + 2 == s[i].length()) {
-                    newState += s[i].substring(0, s[i].indexOf(".")) + symbol + ".";
-                } else {
-                    newState += s[i].substring(0, s[i].indexOf(".")) + symbol + "."
-                            + s[i].substring(s[i].indexOf(symbol, s[i].indexOf(".")) + 1);
-                }
-            }
-            return Closure(newState, nonTerminals, rulesCollections);
         }
+
+        for (String item : itemsToUpdate) {
+            newState.append(item).append(",");
+        }
+
+        return Closure(newState.substring(0, newState.length() - 1), nonTerminals, rulesCollections);
     }
 
+    // DESC: this uses BFP to process the items in a recursive manner.
+
     public static String Closure(String state, String nonTerminals, String[] rulesCollections) {
-        // boolean array used to identify if the symbol has been added
-        boolean[] tags = new boolean[(nonTerminals.length() + 1) / 2];
-        for (int i = 0; i < tags.length; i++)
-            tags[i] = false;
-        for (int i = 0; i < tags.length; i++) {
-            String[] items = state.split(",");
-            for (int j = 0; j < items.length; j++) {
-                // fetch the symbol after dot
-                if (items[j].indexOf(".") + 1 == items[j].length()) {
-                    return state;
-                } else {
-                    char symbol = items[j].charAt(items[j].indexOf(".") + 1);
-                    // if the symbol is a nonTerminal and not added so far
-                    if (nonTerminals.indexOf(symbol) != -1) {
-                        int k = (nonTerminals.indexOf(symbol) + 1) / 2;
-                        if (tags[k])
-                            continue;
-                        // look for rules that begin with the symbol
-                        for (int l = 0; l < rulesCollections.length; l++) {
-                            char lhs = rulesCollections[l].charAt(0);
-                            if (lhs == symbol) {
-                                // add rules into the state with dot on rhs
-                                int idx = rulesCollections[l].indexOf("->");
-                                state += "," + rulesCollections[l].substring(0, idx + 2) + "."
-                                        + rulesCollections[l].substring(idx + 2);
-                            }
+        Set<String> closureItems = new HashSet<>();// ensures each item is only used once and prevents infanite Loop
+        Queue<String> itemsToProcess = new LinkedList<>();
+        String[] initialItem = state.split(",");
+
+        // add initial state to itp and ci
+        for (String item : initialItem) {
+            itemsToProcess.add(item);
+            closureItems.add(item);
+        }
+
+        while (!itemsToProcess.isEmpty()) {
+            String currentItem = itemsToProcess.poll();
+
+            int dotIndex = currentItem.indexOf(".");
+
+            if (dotIndex == -1 || dotIndex + 1 >= currentItem.length()) {
+                continue;// skip complete items
+            }
+
+            char symbolAfterDot = currentItem.charAt(dotIndex + 1);
+            // check if next item is non-terminal
+            if (nonTerminals.indexOf(symbolAfterDot) != -1) {
+                for (String rule : rulesCollections) {
+                    if (rule.charAt(0) == symbolAfterDot) {
+                        String newItem = rule.substring(0, rule.indexOf("->") + 2) + "."
+                                + rule.substring(rule.indexOf("->") + 2);
+
+                        if (!closureItems.contains(newItem)) {
+                            closureItems.add(newItem);
+                            itemsToProcess.add(newItem);
                         }
-                        // mark the symbol as added
-                        tags[k] = true;
                     }
                 }
             }
         }
-        return state;
+        System.out.println("This is what we got Here: " + String.join(",", closureItems));
+        return String.join(",", closureItems);
     }
 
     public static String constructStateDiagram(Hashtable<Integer, String> states, String nonTerminals,
             String[] rulesCollections) {
-        String Gotos = "";
-        int n = 1, stateSize = states.size(), gotoSize = Gotos.split(",").length;
-        while (true) {
-            for (int i = 0; i < states.size(); i++) {
-                for (int j = 0; j < states.get(i).split(",").length; j++) {
-                    String item = states.get(i).split(",")[j];
-                    if (item.indexOf(".") + 1 == item.length()) {
-                        continue;
-                    } else {
-                        char symbol = item.charAt(item.indexOf(".") + 1);
-                        String dest = Goto(item, symbol, nonTerminals, rulesCollections);
-                        // System.out.println(item + " " + symbol + " " + dest + " " +
-                        // states.contains(dest) + " " + i + "" + symbol + "" + findKey(states, dest));
-                        if (!states.contains(dest)) {
-                            states.put(n++, dest);
-                            Gotos += i + "" + symbol + "" + findKey(states, dest) + ",";
-                        } else {
-                            String str = i + "" + symbol + "" + findKey(states, dest) + ",";
-                            if (Gotos.indexOf(str) == -1) {
-                                Gotos += str;
-                            }
-                        }
+        StringBuilder Gotos = new StringBuilder();// more efficient space complexity than a String
+        int n = 1;
+        Queue<Integer> queue = new LinkedList<>();
+        Set<String> transitions = new HashSet<>();
+
+        queue.add(0);
+
+        // Iterate through states using a queue to avoid redundant checks
+        while (!queue.isEmpty()) {
+            int i = queue.poll();
+            String[] items = states.get(i).split(",");
+
+            for (String item : items) {
+                if (item.indexOf(".") + 1 == item.length()) {
+                    continue;
+                }
+
+                char symbol = item.charAt(item.indexOf(".") + 1);
+                String dest = Goto(item, symbol, nonTerminals, rulesCollections);
+
+                if (!states.containsValue(dest)) {
+                    states.put(n, dest);
+                    queue.add(n);
+                    String transition = i + "" + symbol + "" + n;
+                    Gotos.append(transition).append(",");
+                    transitions.add(transition);
+                    n++;
+                } else {
+                    int destKey = findKey(states, dest);
+                    String transition = i + "" + symbol + "" + destKey;
+                    if (!transitions.contains(transition)) {
+                        Gotos.append(transition).append(",");
+                        transitions.add(transition);
                     }
                 }
             }
-            // if there is no change made into either state or goto, terminate the loop
-            if (stateSize != states.size() || gotoSize != Gotos.split(",").length) {
-                stateSize = states.size();
-                gotoSize = Gotos.split(",").length;
-            } else {
-                break;
-            }
         }
-        return Gotos.substring(0, Gotos.length() - 1);
+
+        return Gotos.length() > 0 ? Gotos.substring(0, Gotos.length() - 1) : "";
     }
 
     public static Hashtable<String, String> parsingTable(Hashtable<Integer, String> states, String Gotos,
@@ -208,11 +224,11 @@ public class Main {
     }
 
     public static int findKey(Hashtable<Integer, String> states, String value) {
-        Enumeration<Integer> keys = states.keys();
-        while (keys.hasMoreElements()) {
-            int key = keys.nextElement();
-            if (states.get(key).equals(value)) {
-                return key;
+        // removed enumeration to avoid having to itterate through both key and value
+        // seperately.
+        for (Map.Entry<Integer, String> entry : states.entrySet()) {
+            if (entry.getValue().equals(value)) {
+                return entry.getKey();
             }
         }
         return -1;
@@ -245,11 +261,10 @@ public class Main {
         }
     }
 
-    public static boolean parsedStack(String input, Hashtable<String, String> pT, String[] rulesCollections) {
-        boolean accepted = false;
-        Stack<Integer> stack = new Stack<>();// stack of state integers.
-        stack.push(0);
+    public static void parsedStack(String input, Hashtable<String, String> pT, String[] rulesCollections) {
+
         Stack<Character> charStack = new Stack<>();
+        charStack.push('0'); // Use '0' to represent state 0
 
         input += "$";
         int i = 0;
@@ -263,29 +278,25 @@ public class Main {
         System.out.print("\n");
 
         while (true) {
-            int currentState = stack.peek();
+            char currentState = charStack.peek();
             char currentSymbol = input.charAt(i);
             String action = pT.get(currentState + "" + currentSymbol);
 
             // Print the current state of the stack and input, and the action
-            System.out.printf("%-15s %-15s %-10s\n", printStack(stack), input.substring(i), action);
+            System.out.printf("%-15s %-15s %-10s\n", printStack(charStack), input.substring(i), action);
 
             // Format and print the current state of the stack and input
-            printStack(stack);
             if (action == null) {
-                System.out.println("Input string" + input + " was not accepted.");
-                accepted = false;
-                return accepted;
+                System.out.println("Input string " + input + " was not accepted.");
             }
 
             if (action.equals("accept")) {
                 System.out.print("Input string " + "/'" + input + "/'" + " accepted");
-                accepted = true;
-                return accepted;
+                break;
             } else if (action.startsWith("s")) {
                 int nextState = Integer.parseInt(action.substring(1));
-                stack.push(nextState);
                 charStack.push(currentSymbol);
+                charStack.push((char) (nextState + '0')); // Push next state as a character
                 i++;
             } else if (action.startsWith("r")) {
                 // Reduce action: pop symbols and states based on the rule being reduced
@@ -295,8 +306,8 @@ public class Main {
 
                 // Pop states and symbols corresponding to the rule's right-hand side length
                 for (int j = 0; j < rhs.length(); j++) {
-                    stack.pop();
-                    charStack.pop();
+                    charStack.pop(); // Pop symbol
+                    charStack.pop(); // Pop state
                 }
 
                 // Get the non-terminal from the rule's left-hand side
@@ -304,25 +315,25 @@ public class Main {
                 charStack.push(lhs); // Push the non-terminal
 
                 // Perform a Goto action to determine the next state
-                int gotoState = Integer.parseInt(pT.get(stack.peek() + "" + lhs));
-                stack.push(gotoState);
+                char gotoState = (char) (Integer.parseInt(pT.get(charStack.get(charStack.size() - 2) + "" + lhs))
+                        + '0');
+                charStack.push(gotoState);
             }
-
         }
-
     }
 
     public static String UserInput() {
         System.out.print("Enter a string: \n");
         Scanner sc = new Scanner(System.in);
         String input = sc.nextLine();
+        sc.close();
         return input;
     }
 
-    public static String printStack(Stack<Integer> stack) {
+    public static String printStack(Stack<Character> stack) {
         StringBuilder printableStack = new StringBuilder();
         for (int i = 0; i < stack.size(); i++) {
-            printableStack.append(stack.get(i)).append(" ");
+            printableStack.append(stack.get(i)).append("");
         }
         return printableStack.toString();
     }
