@@ -1,3 +1,14 @@
+
+/**
+ * Main class for LR(0) parser implementation in Java.
+ * description: This program implements an LR(0) parser for a given set of rules.
+ * The program reads the rules from a file, constructs the augmented grammar, generates the states, and constructs the parsing table.
+ * The program then reads an input string from the user and parses it using the parsing table.
+ * The program displays the parsing table, the states, and the parsing process.
+ * This does not work for complex grammars (see the example in the rules2 file).
+ * DEVELOPED BY: Seth Glover
+ * DATE: 31/10/2024 
+ */
 import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.ArrayList;
